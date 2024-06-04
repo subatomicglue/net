@@ -29,7 +29,7 @@ cd build
 Build using ASIO (non boost), using conan package manager & cmake
 ```
 make asio
-cd build/Debug
+cd build-asio/Debug
 
 # try one of the demos
 ./udp
