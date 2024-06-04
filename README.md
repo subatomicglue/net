@@ -20,11 +20,19 @@ Developed on MacOS, YMMV for other platforms (you may need to fix what I haven't
 Build using posix sockets for Linux/MacOS
 ```
 make
+cd build
+
+# try one of the demos
+./udp
 ```
 
 Build using ASIO (non boost), using conan package manager & cmake
 ```
-make conan
+make asio
+cd build/Debug
+
+# try one of the demos
+./udp
 ```
 
 Build using winsock for Windows
