@@ -1,7 +1,6 @@
 # transport lib
 Currently just a sandbox, playing around with various transport protocols.
 
-Most of this has been generated using ChatGPT with some editing to get it working and organized.
 
 Explorations of:
 - TCP
