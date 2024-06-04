@@ -8,7 +8,7 @@ udp: src/main_udp.cpp src/UDP.h src/utils.h src/platform_check.h
 tcp: src/main_tcp.cpp src/TCP.h src/utils.h src/platform_check.h
 	g++ -g src/main_tcp.cpp -pthread -std=c++17 -otcp
 
-mdns: src/main_mdns.cpp src/mDNS.h src/mDNSData.h src/utils.h src/platform_check.h src/testdata.h
+mdns: src/main_mdns.cpp src/mDNS.h src/mDNSData.h src/utils.h src/platform_check.h src/mDNSTestData.h
 	g++ -g src/main_mdns.cpp -pthread -std=c++17 -omdns
 
 ##############################################################

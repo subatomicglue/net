@@ -1,6 +1,6 @@
 #include <thread>
 #include "mDNS.h"
-#include "testdata.h"
+#include "mDNSTestData.h"
 
 //#define UNIT_TEST 1
 
