@@ -3,11 +3,8 @@
 all:
 	rm -rf ./build
 	mkdir -p build
-	conan install . --output-folder build/Debug/generators --build=missing --settings=build_type=Debug
-	conan build . --output-folder build/Debug/generators
-	cd build && source ./Debug/generators/conanbuild.sh; cd -
-	cd build/Debug && cmake ../.. -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug; cd -
-	cd build/Debug && cmake --build .; cd -
+	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug; cd -
+	cd build && make
 
 ##############################################################
 # asio build
@@ -23,7 +20,6 @@ asio:
 	cd build-asio/Debug && cmake --build .; cd -
 
 clean:
-	rm -rf ./build ./build-asio
-	rm -f ./udp ./tcp ./mdns
-	rm -rf ./mdns.dSYM ./tcp.dSYM ./udp.dSYM
+	rm -rf ./build ./build-asio CMakeUserPresets.json
+
 
