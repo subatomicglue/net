@@ -3,6 +3,18 @@ Currently just a sandbox, playing around with various transport protocols.
 
 Most of this has been generated using ChatGPT with some editing to get it working and organized.
 
+Explorations of:
+- TCP
+- UDP
+- mDNS (Service Discovery)
+
+Implementations:
+- Posix (Linux and MacOS)
+- asio  (non boost)
+- Winsock (sorry...  written, but untested)
+
+Developed on MacOS, YMMV for other platforms (you may need to fix what I haven't).
+
 
 # How To Build
 Build using posix sockets for Linux/MacOS
@@ -40,13 +52,13 @@ _services._dns-sd._udp.local
 ```
 
 
-# Examples of messages
-Using the demo here: [https://github.com/mjansson/mdns](https://github.com/mjansson/mdns)
+# mDNS:  Example Messages
+There is this nice mDNS demo: [https://github.com/mjansson/mdns](https://github.com/mjansson/mdns)
 ```
 ./mdns --dump
 ```
 
-Where localhost is `192.168.4.115`:
+Which can monitor local network mDNS traffic
 ```
 192.168.4.115:56887: Question A mantis.local. rclass 0x1 ttl 0
 
@@ -59,4 +71,5 @@ Where localhost is `192.168.4.115`:
 192.168.4.30:5353: Additional A MyQ-35E.local. rclass 0x8001 ttl 300
 192.168.4.30:5353: Additional <UNKNOWN> MyQ-35E.local. rclass 0x8001 ttl 30
 ```
+Where localhost is `192.168.4.115`
 
