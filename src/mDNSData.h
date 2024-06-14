@@ -148,7 +148,7 @@ std::string parseDomainName(const T* buffer, int& pos, int length) {
 template <typename T>
 void parseMDNSQuestion(const T* buffer, int& pos, int length, DNSQuestion::Callback cb) {
   if (length <= pos) {
-    fprintf( stderr, "Invalid mDNS packet.\n" );
+    fprintf( stderr, "[parseMDNSQuestion] Invalid mDNS packet (length:%d pos:%d).\n", length, pos );
     return;
   }
 
@@ -175,7 +175,7 @@ void parseMDNSQuestion(const T* buffer, int& pos, int length, DNSQuestion::Callb
 template <typename T>
 void parseMDNSRecord(const T* buffer, int& pos, int length, DNSResourceRecord::Callback cb, DNSHeader::Type msg_type) {
   if (length <= pos) {
-    fprintf( stderr, "Invalid mDNS packet.\n" );
+    fprintf( stderr, "[parseMDNSRecord] Invalid mDNS packet (length:%d pos:%d).\n", length, pos );
     return;
   }
   std::string name = parseDomainName(buffer, pos, length);
@@ -283,7 +283,7 @@ void parseMDNSRecord(const T* buffer, int& pos, int length, DNSResourceRecord::C
 template <typename T>
 void parseMDNSPacket(const T* buffer, int& pos, int length, DNSQuestion::Callback qCb, DNSResourceRecord::Callback rCb ) {
     if (length < pos) {
-      fprintf( stderr, "Invalid mDNS packet.\n" );
+      fprintf( stderr, "[parseMDNSPacket] Invalid mDNS packet (length:%d pos:%d).\n", length, pos );
       return;
     }
 

@@ -9,6 +9,7 @@
 class mDNS {
 public:
   mDNS() {
+    // setup defaults (can be overridden)
     rawCallbacks.push_back( printf_cb );
     questionCallbacks.push_back( printf_qCb );
     recordCallbacks.push_back( printf_rCb );

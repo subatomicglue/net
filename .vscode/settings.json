@@ -78,6 +78,10 @@
     "queue": "cpp",
     "set": "cpp",
     "stack": "cpp",
-    "cerrno": "cpp"
+    "cerrno": "cpp",
+    "complex": "cpp",
+    "optional": "cpp",
+    "cinttypes": "cpp",
+    "format": "cpp"
   }
 }
