@@ -222,7 +222,7 @@ int main( int argc, char* argv[] ) {
     transport.questionCallbacks.push_back( [&opt, &transport]( const std::string& sender_ip, const std::string& name, uint16_t qtype, uint16_t qclass, bool flushbit, const char* buffer, uint16_t buffer_size, int pos ) {
       if (qtype == DNSQuestion::PTR && name.find( opt.service_name ) != std::string::npos) {
         printf( "reply to the service question for %s!\n", opt.service_name.c_str() );
-        std::vector<char> send_buf = makeQuestionBuffer<char>( opt.service_name, opt.type );
+        std::vector<char> send_buf = makeAnswerBuffer<char>( opt.service_name, opt.type );
         transport.send( send_buf.data(), send_buf.size() );
       }
     });
