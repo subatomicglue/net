@@ -39,6 +39,30 @@ Build using winsock for Windows
 TODO   (sorry)
 ```
 
+# mDNS HOWTO:
+```
+# monitor local mDNS traffic for all services
+./mdns  
+
+# query all services ("_services._dns-sd._udp.local")
+# monitor local mDNS traffic for all services
+./mdns -q
+
+# query all services ("_services._dns-sd._udp.local")
+# monitor local mDNS traffic for all services, from <ip address>
+./mdns --ip <your ip goes here> -q
+
+# query a service "_suBachat._udp.local"
+# monitor local mDNS traffic for service "_suBachat._udp.local"
+./mdns -q --name "_suBachat._udp.local"
+
+# query a service "_suBachat._udp.local"
+# answer service queries with a TXT
+# monitor local mDNS traffic for service "_suBachat._udp.local" from <ip address>
+./mdns --ip <your ip goes here> \
+  --query --name "_suBachat._udp.local" \
+  --answer --type TXT
+```
 
 # mDNS-SD spec
 Multicast DNS

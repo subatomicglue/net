@@ -37,6 +37,12 @@ struct DNSHeader {
     return l.find( t ) != l.end() ? l.find( t )->second : unknown;
   }
 
+  // Raw mDNS message callback type
+  using Callback = std::function<void(const std::string& sender_ip, const char* buffer, uint16_t buffer_size)>;
+  
+  // a default callback that does nothing
+  static void nop_cb(const std::string& sender_ip, const char* buffer, uint16_t buffer_size) {}
+
   DNSHeader() : id(0), flags(0), qdCount(0), anCount(0), nsCount(0), arCount(0) {}
 };
 
@@ -46,7 +52,10 @@ struct DNSQuestion {
   uint16_t qType; // Query type
   uint16_t qClass; // Query class
 
-  using Callback = std::function<void(std::string name, uint16_t type, uint16_t cls, bool flushbit, const char* buffer, uint16_t buffer_size, int pos)>;
+  using Callback = std::function<void(const std::string& sender_ip, const std::string& name, uint16_t type, uint16_t cls, bool flushbit, const char* buffer, uint16_t buffer_size, int pos)>;
+
+  // a default callback that does nothing
+  static void nop_cb(const std::string& sender_ip, const std::string& name, uint16_t type, uint16_t cls, bool flushbit, const char* buffer, uint16_t buffer_size, int pos) {}
 
   // https://en.wikipedia.org/wiki/List_of_DNS_record_types
   enum Type {
@@ -57,7 +66,8 @@ struct DNSQuestion {
     SRV = 33,
     OPT = 41,
     NSEC = 47,
-    ANY = 255, 
+    ANY = 255,
+    TYPE_UNKNOWN = -1
   };
   static const std::string& typeLookup( int64_t t ) {
     static const std::string unknown = "unknown";
@@ -71,6 +81,18 @@ struct DNSQuestion {
       {Type::AAAA, "AAAA"}
     };
     return l.find( t ) != l.end() ? l.find( t )->second : unknown;
+  }
+  static const Type typeLookup( const std::string& t ) {
+    static const std::map<std::string, Type> l = {
+      {"A", Type::A},
+      {"PTR", Type::PTR},
+      {"TXT", Type::TXT},
+      {"SRV", Type::SRV},
+      {"OPT", Type::OPT},
+      {"NSEC", Type::NSEC},
+      {"AAAA", Type::AAAA}
+    };
+    return l.find( t ) != l.end() ? l.find( t )->second : Type::TYPE_UNKNOWN;
   }
 
   enum Class {
@@ -106,7 +128,10 @@ struct DNSResourceRecord {
   uint32_t ttl; // Time to live
   std::vector<uint8_t> rData; // Resource data
 
-  using Callback = std::function<void(DNSHeader::Type msg_type, std::string name, uint16_t type, uint16_t cls, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos)>;
+  using Callback = std::function<void(const std::string& sender_ip, DNSHeader::Type msg_type, const std::string& name, uint16_t type, uint16_t cls, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos)>;
+
+  // a default callback that does nothing
+  void nop_cb(const std::string& sender_ip, DNSHeader::Type msg_type, const std::string& name, uint16_t type, uint16_t cls, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos) {}
 
   DNSResourceRecord(const std::string& name, uint16_t type, uint16_t cls, uint32_t ttlVal, const std::vector<uint8_t>& data)
     : rName(name), rType(type), rClass(cls), ttl(ttlVal), rData(data) {}
@@ -146,7 +171,7 @@ std::string parseDomainName(const T* buffer, int& pos, int length) {
 }
 
 template <typename T>
-void parseMDNSQuestion(const T* buffer, int& pos, int length, DNSQuestion::Callback cb) {
+void parseMDNSQuestion(const T* buffer, int& pos, int length, const std::string& sender_ip, DNSQuestion::Callback cb) {
   if (length <= pos) {
     fprintf( stderr, "[parseMDNSQuestion] Invalid mDNS packet (length:%d pos:%d).\n", length, pos );
     return;
@@ -169,11 +194,11 @@ void parseMDNSQuestion(const T* buffer, int& pos, int length, DNSQuestion::Callb
   //printf( "  Type:  0x%04x, %d, %s\n", (uint16_t)qtype, (uint16_t)qtype, DNSQuestion::typeLookup( qtype ).c_str() );
   //printf( "  Class: 0x%04x, %d, %s%s\n", (uint16_t)qclass, (uint16_t)qclass_without_flushbit, DNSQuestion::classLookup( qclass_without_flushbit ).c_str(), flushbit ? " +FLUSHBIT" : "" );
 
-  cb( name, qtype, qclass_without_flushbit, flushbit, buffer, length, pos );
+  cb( sender_ip, name, qtype, qclass_without_flushbit, flushbit, buffer, length, pos );
 }
 
 template <typename T>
-void parseMDNSRecord(const T* buffer, int& pos, int length, DNSResourceRecord::Callback cb, DNSHeader::Type msg_type) {
+void parseMDNSRecord(const T* buffer, int& pos, int length, const std::string& sender_ip, DNSResourceRecord::Callback cb, DNSHeader::Type msg_type) {
   if (length <= pos) {
     fprintf( stderr, "[parseMDNSRecord] Invalid mDNS packet (length:%d pos:%d).\n", length, pos );
     return;
@@ -198,7 +223,7 @@ void parseMDNSRecord(const T* buffer, int& pos, int length, DNSResourceRecord::C
   // printf( "  Data length: %d\n", (uint16_t)rdlength );
 
   int rdstart = pos; // Store the start position of RDATA
-  cb( msg_type, name, rtype, rclass_without_flushbit, flushbit, ttl, rdata, buffer, length, pos );
+  cb( sender_ip, msg_type, name, rtype, rclass_without_flushbit, flushbit, ttl, rdata, buffer, length, pos );
 
 /*
   switch (rtype) {
@@ -281,7 +306,9 @@ void parseMDNSRecord(const T* buffer, int& pos, int length, DNSResourceRecord::C
 }
 
 template <typename T>
-void parseMDNSPacket(const T* buffer, int& pos, int length, DNSQuestion::Callback qCb, DNSResourceRecord::Callback rCb ) {
+void parseMDNSPacket(const T* buffer, int& pos, int length, const std::string& sender_ip, DNSHeader::Callback cb, DNSQuestion::Callback qCb, DNSResourceRecord::Callback rCb ) {
+    cb( sender_ip, buffer, length );
+
     if (length < pos) {
       fprintf( stderr, "[parseMDNSPacket] Invalid mDNS packet (length:%d pos:%d).\n", length, pos );
       return;
@@ -304,25 +331,25 @@ void parseMDNSPacket(const T* buffer, int& pos, int length, DNSQuestion::Callbac
 
     // if (0 < qdcount) printf( "Questions[%u]:\n", qdcount );
     for (int x = 0; x < qdcount; ++x) {
-      parseMDNSQuestion( buffer, pos, length, qCb );
+      parseMDNSQuestion( buffer, pos, length, sender_ip, qCb );
       // printf( "\n" );
     }
 
     // if (0 < ancount) printf( "Answers[%u]:\n", ancount );
     for (int i = 0; i < ancount; i++) {
-      parseMDNSRecord(buffer, pos, length, rCb, DNSHeader::Type::ANSWER);
+      parseMDNSRecord(buffer, pos, length, sender_ip, rCb, DNSHeader::Type::ANSWER);
       // printf( "\n" );
     }
 
     // if (0 < nscount) printf( "Authorities[%u]:\n", nscount );
     for (int i = 0; i < nscount; i++) {
-      parseMDNSRecord(buffer, pos, length, rCb, DNSHeader::Type::AUTHORITY);
+      parseMDNSRecord(buffer, pos, length, sender_ip, rCb, DNSHeader::Type::AUTHORITY);
       // printf( "\n" );
     }
 
     // if (0 < arcount) printf( "Additional records[%u]:\n", arcount );
     for (int i = 0; i < arcount; i++) {
-      parseMDNSRecord(buffer, pos, length, rCb, DNSHeader::Type::ADDITIONAL);
+      parseMDNSRecord(buffer, pos, length, sender_ip, rCb, DNSHeader::Type::ADDITIONAL);
       // printf( "\n" );
     }
 }

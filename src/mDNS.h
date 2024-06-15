@@ -17,12 +17,9 @@ public:
   int recv();
   int send( const char* msg, size_t msg_size );
 
-  // Raw mDNS message callback type
-  using Callback = std::function<void(const char* buffer, uint16_t buffer_size)>;
-
   // Raw mDNS message callbacks
   // called for each message.   May contain multiple records, use qCb or rCb to access them individually.
-  std::vector<Callback> rawCallbacks;
+  std::vector<DNSHeader::Callback> rawCallbacks;
 
   // question callback
   // called for each question recv'd via mDNS
@@ -33,14 +30,14 @@ public:
   std::vector<DNSResourceRecord::Callback> recordCallbacks;
 
   // built in Raw mDNS callback - for printf debugging or logging
-  Callback printf_cb = []( const char* buffer, uint16_t buffer_size ) {
+  DNSHeader::Callback printf_cb = []( const std::string& sender_ip, const char* buffer, uint16_t buffer_size ) {
     printf( "Received mDNS message: \n" );
     cppArrayDump( buffer, buffer_size );
     printf( "\n" );
   };
 
   // built in question callback - for printf debugging or logging
-  DNSQuestion::Callback printf_qCb = []( std::string name, uint16_t qtype, uint16_t qclass, bool flushbit, const char* buffer, uint16_t buffer_size, int pos ) {
+  DNSQuestion::Callback printf_qCb = []( const std::string& sender_ip, const std::string& name, uint16_t qtype, uint16_t qclass, bool flushbit, const char* buffer, uint16_t buffer_size, int pos ) {
     printf( "%s:\n", DNSHeader::typeLookup( DNSHeader::Type::QUESTION ).c_str() );
     printf( "  Name: %s\n", name.c_str() );
     printf( "  Type:  0x%04x, %d, %s\n", (uint16_t)qtype, (uint16_t)qtype, DNSQuestion::typeLookup( qtype ).c_str() );
@@ -48,7 +45,7 @@ public:
   };
 
   // built in records callback (e.g. for record types of answer, authority, additional)  - for printf debugging or logging
-  DNSResourceRecord::Callback printf_rCb = []( DNSHeader::Type msg_type, std::string name, uint16_t rtype, uint16_t rclass, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos ) {
+  DNSResourceRecord::Callback printf_rCb = []( const std::string& sender_ip, DNSHeader::Type msg_type, const std::string& name, uint16_t rtype, uint16_t rclass, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos ) {
     printf( "%s:\n", DNSHeader::typeLookup( msg_type ).c_str() );
     printf( "  Name: %s\n", name.c_str() );
     printf( "  Type:  0x%04x, %d, %s\n", (uint16_t)rtype, (uint16_t)rtype, DNSQuestion::typeLookup( rtype ).c_str() );
@@ -131,19 +128,19 @@ public:
   };
 
 private:
-  Callback mCb = [this]( const char* buffer, uint16_t buffer_size ) {
+  DNSHeader::Callback mCb = [this]( const std::string& sender_ip, const char* buffer, uint16_t buffer_size ) {
     for (auto func : rawCallbacks) {
-      func( buffer, buffer_size );
+      func( sender_ip, buffer, buffer_size );
     }
   };
-  DNSQuestion::Callback mqCb = [this]( std::string name, uint16_t qtype, uint16_t qclass, bool flushbit, const char* buffer, uint16_t buffer_size, int pos ) {
+  DNSQuestion::Callback mqCb = [this]( const std::string& sender_ip, const std::string& name, uint16_t qtype, uint16_t qclass, bool flushbit, const char* buffer, uint16_t buffer_size, int pos ) {
     for (auto func : questionCallbacks) {
-      func( name, qtype, qclass, flushbit, buffer, buffer_size, pos );
+      func( sender_ip, name, qtype, qclass, flushbit, buffer, buffer_size, pos );
     }
   };
-  DNSResourceRecord::Callback mrCb = [this]( DNSHeader::Type msg_type, std::string name, uint16_t rtype, uint16_t rclass, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos ) {
+  DNSResourceRecord::Callback mrCb = [this]( const std::string& sender_ip, DNSHeader::Type msg_type, const std::string& name, uint16_t rtype, uint16_t rclass, bool flushbit, uint32_t ttl, std::vector<uint8_t>& data, const char* buffer, uint16_t buffer_size, int pos ) {
     for (auto func : recordCallbacks) {
-      func( msg_type, name, rtype, rclass, flushbit, ttl, data, buffer, buffer_size, pos );
+      func( sender_ip, msg_type, name, rtype, rclass, flushbit, ttl, data, buffer, buffer_size, pos );
     }
   };
 };
@@ -200,10 +197,9 @@ int mDNS::recv() {
           fprintf(stderr, "receive_from failed.  bytesreceived: %d  Error code: %s\n", bytesReceived, strerror(errno) );
           break;
         }
-        mCb( buffer, bytesReceived );
 
         int it = 0;
-        parseMDNSPacket( buffer, it, bytesReceived, mqCb, mrCb );
+        parseMDNSPacket( buffer, it, bytesReceived, ip_NetToStr( (sockaddr&)senderAddr ), mCb, mqCb, mrCb );
       }
     } catch (std::exception& e) {
       std::cerr << "Exception: " << e.what() << std::endl;
@@ -310,10 +306,9 @@ int mDNS::recv() {
       fprintf(stderr, "recvfrom failed.  bytesreceived: %d  Error code: %s\n", bytesReceived, strerror(errno) );
       break;
     }
-    mCb( buffer, bytesReceived );
 
     int it = 0;
-    parseMDNSPacket( buffer, it, bytesReceived, mqCb, mrCb );
+    parseMDNSPacket( buffer, it, bytesReceived, ip_NetToStr( (sockaddr&)senderAddr ), mCb, mqCb, mrCb );
   }
 
   ::close(sock);
@@ -402,10 +397,9 @@ int mDNS::recv() {
       fprintf(stderr, "recvfrom failed.  bytesreceived: %d\n", bytesReceived );
       break;
     }
-    mCb( buffer, bytesReceived );
 
     int it = 0;
-    parseMDNSPacket( buffer, it, bytesReceived, mqCb, mrCb );
+    parseMDNSPacket( buffer, it, bytesReceived, ip_NetToStr( (sockaddr&)senderAddr ), mCb, mqCb, mrCb );
   }
 
   closesocket(sock);

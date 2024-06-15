@@ -48,30 +48,52 @@ void cppArrayDump(const char* data, size_t len) {
   printf( "}" );
 }
 
-#if IS_POSIX==1
+// #if IS_POSIX==1
 #include <arpa/inet.h>
 inline std::string ipv6_NetToStr( const char* buffer ) {
   char addr_str[INET6_ADDRSTRLEN];
   inet_ntop(AF_INET6, buffer, addr_str, sizeof(addr_str));
   return std::string( addr_str );
 }
+
 inline std::string ipv4_NetToStr( const char* buffer ) {
   char buf[16];
   snprintf( buf, sizeof( buf ), "%d.%d.%d.%d", (uint8_t)buffer[0], (uint8_t)buffer[1], (uint8_t)buffer[2], (uint8_t)buffer[3] );
   return std::string( buf );
 }
-#elif IS_WINDOWS==1
-#include <arpa/inet.h>
-inline std::string ipv6_NetToStr( const char* buffer ) {
-  char addr_str[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, buffer, addr_str, sizeof(addr_str));
-  return std::string( addr_str );
+
+inline std::string ip_NetToStr( const sockaddr& sa ) {
+  const sockaddr_in& sa_in = reinterpret_cast<const sockaddr_in&>( sa );
+  char addr_str[INET6_ADDRSTRLEN] = "\0";
+  switch(sa.sa_family) {
+    case AF_INET: return ipv4_NetToStr( (const char*)&sa_in.sin_addr );
+    default:
+    case AF_INET6:  return ipv6_NetToStr( (const char*)&sa_in.sin_addr );
+  }
 }
-inline std::string ipv4_NetToStr( const char* buffer ) {
-  char buf[16];
-  snprintf( buf, sizeof( buf ), "%d.%d.%d.%d", (uint8_t)buffer[0], (uint8_t)buffer[1], (uint8_t)buffer[2], (uint8_t)buffer[3] );
-  return std::string( buf );
-}
-#endif
+// #elif IS_WINDOWS==1
+// #include <arpa/inet.h>
+// inline std::string ipv6_NetToStr( const char* buffer ) {
+//   char addr_str[INET6_ADDRSTRLEN];
+//   inet_ntop(AF_INET6, buffer, addr_str, sizeof(addr_str));
+//   return std::string( addr_str );
+// }
+
+// inline std::string ipv4_NetToStr( const char* buffer ) {
+//   char buf[16];
+//   snprintf( buf, sizeof( buf ), "%d.%d.%d.%d", (uint8_t)buffer[0], (uint8_t)buffer[1], (uint8_t)buffer[2], (uint8_t)buffer[3] );
+//   return std::string( buf );
+// }
+
+// inline std::string ip_NetToStr( const sockaddr& sa ) {
+//   const sockaddr_in& sa_in = reinterpret_cast<const sockaddr_in&>( sa );
+//   char addr_str[INET6_ADDRSTRLEN] = "\0";
+//   switch(sa.sa_family) {
+//     case AF_INET: return ipv4_NetToStr( (const char*)&sa_in.sin_addr );
+//     default:
+//     case AF_INET6:  return ipv6_NetToStr( (const char*)&sa_in.sin_addr );
+//   }
+// }
+// #endif
 
 #endif
